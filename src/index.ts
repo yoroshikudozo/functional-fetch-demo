@@ -1,11 +1,13 @@
-import fetch from 'node-fetch';
-import * as TE from 'fp-ts/lib/TaskEither';
+import fetch, { FetchError } from 'node-fetch';
+import { flow, pipe } from 'fp-ts/lib/function';
 import * as E from 'fp-ts/lib/Either';
-import { FetchError } from 'node-fetch';
+import * as T from 'fp-ts/lib/Task';
+import * as TE from 'fp-ts/lib/TaskEither';
+
+import { dispatch } from './utils';
 import ConnectionError from './errors/connectionError';
 import ParseError from './errors/parseError';
 import ResponseError from './errors/responseError';
-import { flow } from 'fp-ts/lib/function';
 
 export interface TypedResponse<T> extends Response {
   /**
@@ -46,4 +48,10 @@ const ok = (fetch('https://httpstat.us/200', {
   headers: { Accept: 'application/json' },
 }) as unknown) as Promise<TypedResponse<{ type: string }>>;
 
-export const okRequest = http(ok);
+export const fetchOk = pipe(
+  http(ok),
+  TE.fold(
+    err => T.fromIO(dispatch('failed', err)),
+    res => T.fromIO(dispatch('success', res))
+  )
+);

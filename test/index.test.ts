@@ -1,7 +1,7 @@
 import nodeFetch from 'node-fetch';
 import * as E from 'fp-ts/lib/Either';
 import { flow, identity } from 'fp-ts/function';
-import { request, http, okRequest } from '../src';
+import { request, http } from '../src';
 import ApplicationError from '../src/errors/connectionError';
 
 global.fetch = (nodeFetch as unknown) as typeof fetch;
@@ -101,22 +101,5 @@ describe('http', () => {
     const fold = flow(E.fold(onLeft, identity));
     fold(result);
     expect(E.isLeft(result)).toBe(true);
-  });
-});
-
-describe('okRequest', () => {
-  it('works', async () => {
-    const result = await okRequest();
-    const onLeft = (err: ApplicationError) => {
-      console.log(err);
-      console.log(err.name);
-      console.log(err.message);
-      console.log(err.code);
-      console.log(err.stack);
-    };
-    const fold = flow(E.fold(onLeft, identity));
-    fold(result);
-    // expect(result).toEqual(E.left(Error()));
-    expect(E.isRight(result)).toBe(true);
   });
 });
