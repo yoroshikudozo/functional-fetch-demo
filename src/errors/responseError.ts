@@ -1,5 +1,3 @@
-import { TypedResponse } from '..';
-
 export default class ResponseError extends Error {
   statusText: string;
   status: number;
@@ -7,7 +5,7 @@ export default class ResponseError extends Error {
   stack: any;
   response: any;
 
-  constructor(res: TypedResponse<unknown>) {
+  constructor(res: Response) {
     super();
 
     this.name = 'ResponseError';

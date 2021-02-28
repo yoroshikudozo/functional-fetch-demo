@@ -1,105 +1,97 @@
-import nodeFetch from 'node-fetch';
+import fetch, { FetchError, Response as nfResponse } from 'node-fetch';
+import * as t from 'io-ts';
 import * as E from 'fp-ts/lib/Either';
-import { flow, identity } from 'fp-ts/function';
-import { request, http } from '../src';
-import ApplicationError from '../src/errors/connectionError';
 
-global.fetch = (nodeFetch as unknown) as typeof fetch;
+import http, { connect } from '../src';
+import ConnenctionError from '../src/errors/connectionError';
+import ResponseError from '../src/errors/responseError';
 
-export interface TypedResponse<T> extends Response {
-  /**
-   * this will override `json` method from `Body` that is extended by `Response`
-   * interface Body {
-   *     json(): Promise<any>;
-   * }
-   */
-  json<P = T>(): Promise<P>;
-}
-
-declare function fetch<T>(
-  url: RequestInfo,
-  init?: RequestInit
-): Promise<TypedResponse<T>>;
-
-describe('request', () => {
+describe('connect', () => {
   it('works', async () => {
-    const task = fetch('http://localhost:3000/test');
-    const result = await request(task)();
+    const task = (fetch('http://localhost:3000/test') as unknown) as Promise<
+      Response
+    >;
+    const result = await connect(task)();
     expect(E.isLeft(result)).toBe(true);
   });
 
   it('200', async () => {
-    const result = await request(fetch('https://httpstat.us/200'))();
+    const task = (fetch('https://httpstat.us/200') as unknown) as Promise<
+      Response
+    >;
+    const result = await connect(task)();
     expect(E.isRight(result)).toBe(true);
   });
 
   it('400', async () => {
-    const result = await request(fetch('https://httpstat.us/400'))();
+    const task = (fetch('https://httpstat.us/400') as unknown) as Promise<
+      Response
+    >;
+    const result = await connect(task)();
     expect(E.isRight(result)).toBe(true);
   });
 });
 
 describe('http', () => {
   it('works', async () => {
-    const task = fetch('http://localhost:3000/test');
-    const result = await http<{}>(task)();
-    const onLeft = (err: ApplicationError) => {
-      console.log(err);
-      console.log(err.name);
-      console.log(err.message);
-      console.log(err.code);
-      console.log(err.stack);
-    };
-    const fold = flow(E.fold(onLeft, identity));
-    fold(result);
-    // expect(result).toEqual(E.left(Error()));
+    const task = (fetch('http://localhost:3000/test') as unknown) as Promise<
+      Response
+    >;
+    const result = await http(
+      task,
+      t.type({ code: t.number, description: t.string })
+    )();
+    const error = new ConnenctionError(
+      new FetchError(
+        'request to http://localhost:3000/test failed, reason: connect ECONNREFUSED 127.0.0.1:3000',
+        'system'
+      )
+    );
     expect(E.isLeft(result)).toBe(true);
+    expect(result).toEqual(E.left(error));
   });
 
   it('200', async () => {
-    const request = fetch('https://httpstat.us/200', {
+    const task = (fetch('https://httpstat.us/200', {
       headers: { Accept: 'application/json' },
-    });
-    const result = await http(request)();
-    const onLeft = (err: ApplicationError) => {
-      console.log(err);
-      console.log(err.name);
-      console.log(err.message);
-      console.log(err.code);
-      console.log(err.stack);
-    };
-    const fold = flow(E.fold(onLeft, identity));
-    fold(result);
-    console.log(result);
+    }) as unknown) as Promise<Response>;
+    const result = await http(
+      task,
+      t.type({ code: t.number, description: t.string })
+    )();
     expect(E.isRight(result)).toBe(true);
   });
 
   it('ParseError', async () => {
-    const request = fetch('https://httpstat.us/200');
-    const result = await http(request)();
-    const onLeft = (err: ApplicationError) => {
-      console.log(err);
-      console.log(err.name);
-      console.log(err.message);
-      console.log(err.code);
-      console.log(err.stack);
-    };
-    const fold = flow(E.fold(onLeft, identity));
-    fold(result);
+    const task = (fetch('https://httpstat.us/200') as unknown) as Promise<
+      Response
+    >;
+    const result = await http(
+      task,
+      t.type({ code: t.number, description: t.string })
+    )();
+    const error = new ConnenctionError(
+      new FetchError(
+        'invalid json response body at https://httpstat.us/200 reason: Unexpected token O in JSON at position 4',
+        'system'
+      )
+    );
     expect(E.isLeft(result)).toBe(true);
+    expect(result).toEqual(E.left(error));
   });
 
   it('400', async () => {
-    const result = await http(fetch('https://httpstat.us/400'))();
-    const onLeft = (err: ApplicationError) => {
-      console.log(err);
-      console.log(err.name);
-      console.log(err.message);
-      console.log(err.code);
-      console.log(err.stack);
-    };
-    const fold = flow(E.fold(onLeft, identity));
-    fold(result);
+    const task = (fetch('https://httpstat.us/400') as unknown) as Promise<
+      Response
+    >;
+    const result = await http(
+      task,
+      t.type({ code: t.number, description: t.string })
+    )();
+    const error = new ResponseError(
+      (new nfResponse('asdf') as unknown) as Response
+    );
     expect(E.isLeft(result)).toBe(true);
+    expect(result).toEqual(E.left(error));
   });
 });
